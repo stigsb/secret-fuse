@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 use log::info;
+use signal_hook::consts::SIGHUP;
+use signal_hook::iterator::Signals;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -91,13 +93,26 @@ fn cmd_mount(config_path: PathBuf) {
     // Harden process before loading any secrets
     harden::harden_process();
 
-    let resolver = Arc::new(SecretResolver::new(Duration::from_secs(config.cache_ttl)));
-    let engine = Arc::new(TemplateEngine::new(resolver));
+    let resolver = Arc::new(SecretResolver::new(
+        Duration::from_secs(config.cache_ttl),
+        Duration::from_secs(config.op_timeout),
+    ));
+    let engine = Arc::new(TemplateEngine::new(Arc::clone(&resolver)));
     let mountpoint = config.mountpoint.clone();
     let filesystem = fs::SecretFs::new(config.files, engine);
 
+    // Clear secret caches on SIGHUP
+    let sighup_resolver = Arc::clone(&resolver);
+    let mut signals = Signals::new([SIGHUP]).expect("failed to register SIGHUP handler");
+    std::thread::spawn(move || {
+        for _ in signals.forever() {
+            info!("SIGHUP received, clearing secret cache");
+            sighup_resolver.clear_cache();
+        }
+    });
+
     eprintln!("Mounting secret-fuse at {}", mountpoint.display());
-    eprintln!("Press Ctrl-C to unmount and exit.");
+    eprintln!("Press Ctrl-C to unmount and exit. Send SIGHUP to clear caches.");
 
     if let Err(e) = fs::mount(filesystem, &mountpoint) {
         eprintln!("Error: {e}");
@@ -152,14 +167,15 @@ fn cmd_check(config_path: PathBuf) {
         std::process::exit(1);
     }
 
-    let resolver = Arc::new(SecretResolver::new(Duration::from_secs(300)));
+    let resolver = Arc::new(SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30)));
     let engine = TemplateEngine::new(resolver);
 
     let mut errors = 0;
     for (path, entry) in &config.files {
         let result = match &entry.source {
-            config::FileSource::Content(c) => engine.validate_syntax(c),
-            config::FileSource::Template(p) => match std::fs::read_to_string(p) {
+            config::FileSource::Content(_) => Ok(()),
+            config::FileSource::Template(t) => engine.validate_syntax(t),
+            config::FileSource::TemplateFile(p) => match std::fs::read_to_string(p) {
                 Ok(contents) => engine.validate_syntax(&contents),
                 Err(e) => {
                     eprintln!("  FAIL {path}: {e}");

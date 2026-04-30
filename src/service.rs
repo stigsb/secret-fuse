@@ -7,6 +7,7 @@ pub enum ServiceError {
     #[error("could not determine current executable path")]
     NoExePath,
     #[error("unsupported platform for service installation")]
+    #[allow(dead_code)]
     UnsupportedPlatform,
 }
 

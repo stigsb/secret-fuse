@@ -143,11 +143,6 @@ impl SecretFs {
         }
     }
 
-    /// Read the content of a file, rendering it if needed.
-    pub fn read_file(&self, ino: u64) -> Option<Vec<u8>> {
-        self.get_content(ino)
-    }
-
     fn get_content(&self, ino: u64) -> Option<Vec<u8>> {
         let node = self.nodes.get(&ino)?;
         match node {
@@ -164,7 +159,8 @@ impl SecretFs {
 
                 let result = match &entry.source {
                     FileSource::Content(s) => Ok(s.clone()),
-                    FileSource::Template(path) => self.engine.render_file(path).map_err(|e| e.to_string()),
+                    FileSource::Template(s) => self.engine.render_string(s).map_err(|e| e.to_string()),
+                    FileSource::TemplateFile(path) => self.engine.render_file(path).map_err(|e| e.to_string()),
                     FileSource::Secret(uri) => self.engine.render_secret(uri).map_err(|e| e.to_string()),
                 };
 

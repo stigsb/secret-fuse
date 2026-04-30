@@ -10,7 +10,7 @@ fn mock_op_path() -> String {
 
 #[test]
 fn test_cache_hit() {
-    let resolver = SecretResolver::new(Duration::from_secs(300));
+    let resolver = SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30));
     resolver.inject_cache("op://test/item/field", "cached-value");
 
     let result = resolver.resolve("op://test/item/field");
@@ -25,7 +25,7 @@ fn test_cache_expiry() {
     std::env::set_var("MOCK_OP_RESPONSE", "refreshed-value");
     std::env::set_var("MOCK_OP_EXIT_CODE", "0");
 
-    let resolver = SecretResolver::new(Duration::from_secs(0));
+    let resolver = SecretResolver::new(Duration::from_secs(0), Duration::from_secs(30));
     resolver.inject_cache("op://test/item/field", "old-value");
 
     // With TTL=0, cache is always expired, so it re-fetches via mock op
@@ -40,7 +40,7 @@ fn test_cache_miss_fetches_from_op() {
     std::env::set_var("MOCK_OP_RESPONSE", "fetched-secret");
     std::env::set_var("MOCK_OP_EXIT_CODE", "0");
 
-    let resolver = SecretResolver::new(Duration::from_secs(300));
+    let resolver = SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30));
 
     let result = resolver.resolve("op://test/item/field");
     assert!(result.is_ok());
@@ -54,7 +54,7 @@ fn test_op_failure() {
     std::env::set_var("MOCK_OP_EXIT_CODE", "1");
     std::env::set_var("MOCK_OP_STDERR", "not signed in");
 
-    let resolver = SecretResolver::new(Duration::from_secs(300));
+    let resolver = SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30));
 
     let result = resolver.resolve("op://test/item/field");
     assert!(result.is_err());
@@ -68,7 +68,7 @@ fn test_clear_cache() {
     std::env::set_var("MOCK_OP_RESPONSE", "after-clear");
     std::env::set_var("MOCK_OP_EXIT_CODE", "0");
 
-    let resolver = SecretResolver::new(Duration::from_secs(300));
+    let resolver = SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30));
     resolver.inject_cache("op://test/item/field", "value");
 
     resolver.clear_cache();
@@ -81,7 +81,7 @@ fn test_clear_cache() {
 
 #[test]
 fn test_invalid_uri() {
-    let resolver = SecretResolver::new(Duration::from_secs(300));
+    let resolver = SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30));
     let result = resolver.resolve("not-a-valid-uri");
     assert!(result.is_err());
 }
