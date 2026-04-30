@@ -1,3 +1,4 @@
+use secrecy::{ExposeSecret, SecretString};
 use std::collections::HashMap;
 use std::process::Command;
 use std::sync::Mutex;
@@ -16,7 +17,7 @@ pub enum ResolveError {
 }
 
 struct CachedSecret {
-    value: String,
+    value: SecretString,
     expires_at: Instant,
 }
 
@@ -43,7 +44,7 @@ impl SecretResolver {
             let cache = self.cache.lock().unwrap();
             if let Some(entry) = cache.get(uri) {
                 if entry.expires_at > Instant::now() {
-                    return Ok(entry.value.clone());
+                    return Ok(entry.value.expose_secret().to_string());
                 }
             }
         }
@@ -51,13 +52,13 @@ impl SecretResolver {
         // Fetch from op CLI
         let value = self.fetch_from_op(uri)?;
 
-        // Store in cache
+        // Store in cache as SecretString (zeroized on drop)
         {
             let mut cache = self.cache.lock().unwrap();
             cache.insert(
                 uri.to_string(),
                 CachedSecret {
-                    value: value.clone(),
+                    value: SecretString::from(value.clone()),
                     expires_at: Instant::now() + self.ttl,
                 },
             );
@@ -88,7 +89,7 @@ impl SecretResolver {
 
     pub fn clear_cache(&self) {
         let mut cache = self.cache.lock().unwrap();
-        cache.clear();
+        cache.clear(); // Each CachedSecret's SecretString is zeroized on drop
     }
 
     /// Inject a value into the cache (for testing).
@@ -97,7 +98,7 @@ impl SecretResolver {
         cache.insert(
             uri.to_string(),
             CachedSecret {
-                value: value.to_string(),
+                value: SecretString::from(value.to_string()),
                 expires_at: Instant::now() + self.ttl,
             },
         );

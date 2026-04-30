@@ -8,6 +8,7 @@ use fuser::{
 use fuser::{FileHandle, FopenFlags, Generation, OpenFlags, WriteFlags};
 use log::error;
 use std::collections::HashMap;
+use zeroize::Zeroize;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -31,6 +32,12 @@ enum FsNode {
 struct CachedContent {
     data: Vec<u8>,
     expires_at: std::time::Instant,
+}
+
+impl Drop for CachedContent {
+    fn drop(&mut self) {
+        self.data.zeroize();
+    }
 }
 
 pub struct SecretFs {

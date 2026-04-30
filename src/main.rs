@@ -6,6 +6,7 @@ use std::time::Duration;
 
 mod config;
 mod fs;
+mod harden;
 mod resolver;
 mod service;
 mod template;
@@ -86,6 +87,9 @@ fn cmd_mount(config_path: PathBuf) {
             std::process::exit(1);
         }
     }
+
+    // Harden process before loading any secrets
+    harden::harden_process();
 
     let resolver = Arc::new(SecretResolver::new(Duration::from_secs(config.cache_ttl)));
     let engine = Arc::new(TemplateEngine::new(resolver));
