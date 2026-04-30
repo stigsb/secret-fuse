@@ -1,0 +1,24 @@
+#!/bin/sh
+# Mock op CLI for testing.
+#
+# Environment variables:
+#   MOCK_OP_RESPONSE  — stdout to return (default: empty)
+#   MOCK_OP_EXIT_CODE — exit code to return (default: 0)
+#   MOCK_OP_STDERR    — stderr to return (default: empty)
+#
+# The script also writes the received arguments to MOCK_OP_ARGS_FILE
+# (if set) so tests can verify what was called.
+
+if [ -n "$MOCK_OP_ARGS_FILE" ]; then
+    echo "$@" >> "$MOCK_OP_ARGS_FILE"
+fi
+
+if [ -n "$MOCK_OP_STDERR" ]; then
+    echo "$MOCK_OP_STDERR" >&2
+fi
+
+if [ -n "$MOCK_OP_RESPONSE" ]; then
+    printf '%s' "$MOCK_OP_RESPONSE"
+fi
+
+exit "${MOCK_OP_EXIT_CODE:-0}"
