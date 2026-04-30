@@ -1,0 +1,8 @@
+mountpoint: /tmp/test-secrets
+cache_ttl: 60
+
+files:
+  app/.env:
+    template: fixtures/templates/test.env.tmpl
+  app/api-key:
+    secret: op://Development/myapp/api-key

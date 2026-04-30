@@ -1,0 +1,8 @@
+mountpoint: /tmp/test-secrets
+
+files:
+  npm/.npmrc:
+    content: |
+      //registry.npmjs.org/:_authToken={{ op("op://Development/npm/token") }}
+  app/simple:
+    secret: op://Vault/item/field
