@@ -382,7 +382,6 @@ pub fn mount(fs: SecretFs, mountpoint: &Path) -> std::io::Result<()> {
     options.mount_options = vec![
         MountOption::RO,
         MountOption::FSName("secret-fuse".to_string()),
-        MountOption::AutoUnmount,
     ];
     fuser::mount2(fs, mountpoint, &options)
 }
