@@ -26,14 +26,14 @@ pub fn install(config_path: &Path, _mountpoint: &Path) -> Result<PathBuf, Servic
 fn install_launchd(exe: &Path, config_path: &Path) -> Result<PathBuf, ServiceError> {
     let plist_dir = dirs::home_dir().unwrap_or_default().join("Library/LaunchAgents");
     std::fs::create_dir_all(&plist_dir)?;
-    let plist_path = plist_dir.join("ai.sunstoneinstitute.secret-fuse.plist");
+    let plist_path = plist_dir.join("com.stigbakken.secret-fuse.plist");
     let plist = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>ai.sunstoneinstitute.secret-fuse</string>
+    <string>com.stigbakken.secret-fuse</string>
     <key>ProgramArguments</key>
     <array>
         <string>{exe}</string>
@@ -45,10 +45,6 @@ fn install_launchd(exe: &Path, config_path: &Path) -> Result<PathBuf, ServiceErr
     <true/>
     <key>KeepAlive</key>
     <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/secret-fuse.stdout.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/secret-fuse.stderr.log</string>
 </dict>
 </plist>
 "#,

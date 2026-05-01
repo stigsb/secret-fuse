@@ -119,13 +119,13 @@ Generates a system service file so secret-fuse starts automatically at login:
 secret-fuse install
 ```
 
-- **macOS**: writes a launchd plist to `~/Library/LaunchAgents/`
-- **Linux**: writes a systemd user unit to `~/.config/systemd/user/`
+- **macOS**: writes a launchd plist to `~/Library/LaunchAgents/`; logs go to Apple's unified logging (view with `log show --predicate 'subsystem == "com.stigbakken.secret-fuse"' --info --last 1h` or via Console.app)
+- **Linux**: writes a systemd user unit to `~/.config/systemd/user/`; logs go to the journal (view with `journalctl --user -u secret-fuse`)
 
 After installing:
 ```bash
 # macOS
-launchctl load ~/Library/LaunchAgents/ai.sunstoneinstitute.secret-fuse.plist
+launchctl load ~/Library/LaunchAgents/com.stigbakken.secret-fuse.plist
 
 # Linux
 systemctl --user enable --now secret-fuse

@@ -47,8 +47,24 @@ fn expand_tilde(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-fn main() {
+fn init_logging() {
+    #[cfg(target_os = "macos")]
+    {
+        let stderr_is_tty = unsafe { libc::isatty(libc::STDERR_FILENO) } != 0;
+        if !stderr_is_tty
+            && oslog::OsLogger::new("com.stigbakken.secret-fuse")
+                .level_filter(log::LevelFilter::Info)
+                .init()
+                .is_ok()
+        {
+            return;
+        }
+    }
     env_logger::init();
+}
+
+fn main() {
+    init_logging();
     let cli = Cli::parse();
     let config_path = expand_tilde(&cli.config);
 

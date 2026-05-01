@@ -70,8 +70,8 @@ Implements `fuser::Filesystem` as a read-only virtual filesystem.
 ### Service Installation (`service.rs`)
 
 Generates platform-specific service files:
-- macOS: launchd plist at `~/Library/LaunchAgents/ai.sunstoneinstitute.secret-fuse.plist`
-- Linux: systemd user unit at `~/.config/systemd/user/secret-fuse.service`
+- macOS: launchd plist at `~/Library/LaunchAgents/com.stigbakken.secret-fuse.plist`; logs via Apple unified logging (subsystem `com.stigbakken.secret-fuse`)
+- Linux: systemd user unit at `~/.config/systemd/user/secret-fuse.service`; logs via journald
 
 ### Process Hardening (`harden.rs`)
 
