@@ -86,6 +86,5 @@ fn base64encode_filter(value: String) -> Result<Value, JinjaError> {
 }
 
 fn totoml_filter(value: String) -> Result<Value, JinjaError> {
-    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
-    Ok(Value::from(format!("\"{escaped}\"")))
+    Ok(Value::from(toml::Value::String(value).to_string()))
 }

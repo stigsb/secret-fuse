@@ -65,6 +65,24 @@ fn test_render_totoml_filter() {
 }
 
 #[test]
+fn test_render_totoml_filter_escapes_control_chars() {
+    let resolver = Arc::new(SecretResolver::new(
+        Duration::from_secs(300),
+        Duration::from_secs(30),
+    ));
+    let raw = "line1\nline2\twith\ttabs and a \"quote\" and a \\backslash";
+    resolver.inject_cache("op://Dev/multiline", raw);
+    let engine = TemplateEngine::new(resolver);
+    let result = engine
+        .render_string("{{ op(\"op://Dev/multiline\") | totoml }}")
+        .unwrap();
+
+    let doc = format!("v = {result}\n");
+    let parsed: toml::Table = toml::from_str(&doc).expect("totoml output must be valid TOML");
+    assert_eq!(parsed["v"].as_str().unwrap(), raw);
+}
+
+#[test]
 fn test_render_template_file() {
     let resolver = test_resolver();
     let engine = TemplateEngine::new(resolver);
