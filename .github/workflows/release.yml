@@ -27,9 +27,6 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             archive_name: secret-fuse-linux-x86_64
-          - os: macos-13
-            target: x86_64-apple-darwin
-            archive_name: secret-fuse-macos-x86_64
           - os: macos-latest
             target: aarch64-apple-darwin
             archive_name: secret-fuse-macos-aarch64
