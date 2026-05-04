@@ -4,7 +4,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 fn test_resolver() -> Arc<SecretResolver> {
-    let resolver = Arc::new(SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30)));
+    let resolver = Arc::new(SecretResolver::new(
+        Duration::from_secs(300),
+        Duration::from_secs(30),
+    ));
     resolver.inject_cache("op://Dev/postgres/password", "s3cret");
     resolver.inject_cache("op://Dev/api/key", "ak_12345");
     resolver.inject_cache("op://Dev/padded/value", "  hello  \n");

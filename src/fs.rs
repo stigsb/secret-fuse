@@ -8,11 +8,11 @@ use fuser::{
 use fuser::{FileHandle, FopenFlags, Generation, OpenFlags, WriteFlags};
 use log::error;
 use std::collections::HashMap;
-use zeroize::Zeroize;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
+use zeroize::Zeroize;
 
 const CONTENT_TTL: Duration = Duration::from_secs(300);
 const ATTR_TTL: Duration = Duration::from_secs(1);
@@ -95,7 +95,12 @@ impl SecretFs {
                 ino
             } else {
                 let ino = self.alloc_inode();
-                self.nodes.insert(ino, FsNode::Dir { children: HashMap::new() });
+                self.nodes.insert(
+                    ino,
+                    FsNode::Dir {
+                        children: HashMap::new(),
+                    },
+                );
                 if let Some(FsNode::Dir { children }) = self.nodes.get_mut(&parent_ino) {
                     children.insert(component, ino);
                 }
@@ -150,18 +155,24 @@ impl SecretFs {
             FsNode::File { entry, cache } => {
                 {
                     let guard = cache.lock().unwrap();
-                    if let Some(ref cached) = *guard {
-                        if cached.expires_at > std::time::Instant::now() {
-                            return Some(cached.data.clone());
-                        }
+                    if let Some(ref cached) = *guard
+                        && cached.expires_at > std::time::Instant::now()
+                    {
+                        return Some(cached.data.clone());
                     }
                 }
 
                 let result = match &entry.source {
                     FileSource::Content(s) => Ok(s.clone()),
-                    FileSource::Template(s) => self.engine.render_string(s).map_err(|e| e.to_string()),
-                    FileSource::TemplateFile(path) => self.engine.render_file(path).map_err(|e| e.to_string()),
-                    FileSource::Secret(uri) => self.engine.render_secret(uri).map_err(|e| e.to_string()),
+                    FileSource::Template(s) => {
+                        self.engine.render_string(s).map_err(|e| e.to_string())
+                    }
+                    FileSource::TemplateFile(path) => {
+                        self.engine.render_file(path).map_err(|e| e.to_string())
+                    }
+                    FileSource::Secret(uri) => {
+                        self.engine.render_secret(uri).map_err(|e| e.to_string())
+                    }
                 };
 
                 match result {
@@ -218,7 +229,7 @@ impl SecretFs {
         FileAttr {
             ino: INodeNo(ino),
             size,
-            blocks: (size + 511) / 512,
+            blocks: size.div_ceil(512),
             atime: t,
             mtime: t,
             ctime: t,

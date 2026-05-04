@@ -24,7 +24,9 @@ pub fn install(config_path: &Path, _mountpoint: &Path) -> Result<PathBuf, Servic
 
 #[cfg(target_os = "macos")]
 fn install_launchd(exe: &Path, config_path: &Path) -> Result<PathBuf, ServiceError> {
-    let plist_dir = dirs::home_dir().unwrap_or_default().join("Library/LaunchAgents");
+    let plist_dir = dirs::home_dir()
+        .unwrap_or_default()
+        .join("Library/LaunchAgents");
     std::fs::create_dir_all(&plist_dir)?;
     let plist_path = plist_dir.join("com.stigbakken.secret-fuse.plist");
     let plist = format!(
@@ -57,7 +59,9 @@ fn install_launchd(exe: &Path, config_path: &Path) -> Result<PathBuf, ServiceErr
 
 #[cfg(target_os = "linux")]
 fn install_systemd(exe: &Path, config_path: &Path) -> Result<PathBuf, ServiceError> {
-    let unit_dir = dirs::home_dir().unwrap_or_default().join(".config/systemd/user");
+    let unit_dir = dirs::home_dir()
+        .unwrap_or_default()
+        .join(".config/systemd/user");
     std::fs::create_dir_all(&unit_dir)?;
     let unit_path = unit_dir.join("secret-fuse.service");
     let unit = format!(

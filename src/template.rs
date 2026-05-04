@@ -21,7 +21,11 @@ impl TemplateEngine {
         TemplateEngine { resolver }
     }
 
-    fn create_env(&self, template_name: &str, source: &str) -> Result<Environment<'_>, TemplateError> {
+    fn create_env(
+        &self,
+        template_name: &str,
+        source: &str,
+    ) -> Result<Environment<'_>, TemplateError> {
         let mut env = Environment::new();
 
         let resolver = Arc::clone(&self.resolver);

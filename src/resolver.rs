@@ -45,10 +45,10 @@ impl SecretResolver {
         // Check cache
         {
             let cache = self.cache.lock().unwrap();
-            if let Some(entry) = cache.get(uri) {
-                if entry.expires_at > Instant::now() {
-                    return Ok(entry.value.expose_secret().to_string());
-                }
+            if let Some(entry) = cache.get(uri)
+                && entry.expires_at > Instant::now()
+            {
+                return Ok(entry.value.expose_secret().to_string());
             }
         }
 
@@ -87,7 +87,8 @@ impl SecretResolver {
         let timeout_secs = self.op_timeout.as_secs();
         match child.wait_timeout(self.op_timeout) {
             Ok(Some(status)) => {
-                let output = child.wait_with_output()
+                let output = child
+                    .wait_with_output()
                     .map_err(|e| ResolveError::OpFailed(e.to_string()))?;
                 if !status.success() {
                     let stderr = String::from_utf8_lossy(&output.stderr);

@@ -9,10 +9,14 @@ fn test_parse_basic_config() {
     assert_eq!(config.files.len(), 2);
 
     let env_entry = &config.files["app/.env"];
-    assert!(matches!(&env_entry.source, FileSource::TemplateFile(p) if p == &PathBuf::from("fixtures/templates/test.env.tmpl")));
+    assert!(
+        matches!(&env_entry.source, FileSource::TemplateFile(p) if p == &PathBuf::from("fixtures/templates/test.env.tmpl"))
+    );
 
     let key_entry = &config.files["app/api-key"];
-    assert!(matches!(&key_entry.source, FileSource::Secret(s) if s == "op://Development/myapp/api-key"));
+    assert!(
+        matches!(&key_entry.source, FileSource::Secret(s) if s == "op://Development/myapp/api-key")
+    );
 }
 
 #[test]

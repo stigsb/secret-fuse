@@ -7,7 +7,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 fn test_fs() -> SecretFs {
-    let resolver = Arc::new(SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30)));
+    let resolver = Arc::new(SecretResolver::new(
+        Duration::from_secs(300),
+        Duration::from_secs(30),
+    ));
     let engine = Arc::new(TemplateEngine::new(resolver));
 
     let mut files = HashMap::new();

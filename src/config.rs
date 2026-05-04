@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 #[derive(Debug)]
@@ -30,7 +30,9 @@ pub enum ConfigError {
     Io(#[from] io::Error),
     #[error("failed to parse config: {0}")]
     Parse(#[from] serde_yaml::Error),
-    #[error("file entry '{0}' must have exactly one of: content, template, templateFile, or secret")]
+    #[error(
+        "file entry '{0}' must have exactly one of: content, template, templateFile, or secret"
+    )]
     InvalidEntry(String),
     #[error("template file not found: {0}")]
     TemplateNotFound(PathBuf),
@@ -70,18 +72,23 @@ impl Config {
         Self::parse(&contents, &config_dir)
     }
 
-    #[allow(dead_code)]
+    #[allow(dead_code, clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Self, ConfigError> {
-        Self::parse(s, &PathBuf::new())
+        Self::parse(s, Path::new(""))
     }
 
-    fn parse(s: &str, config_dir: &PathBuf) -> Result<Self, ConfigError> {
+    fn parse(s: &str, config_dir: &Path) -> Result<Self, ConfigError> {
         let raw: RawConfig = serde_yaml::from_str(s)?;
         let mountpoint = expand_tilde(&raw.mountpoint);
 
         let mut files = HashMap::new();
         for (name, entry) in raw.files {
-            let source = match (entry.content, entry.template, entry.template_file, entry.secret) {
+            let source = match (
+                entry.content,
+                entry.template,
+                entry.template_file,
+                entry.secret,
+            ) {
                 (Some(c), None, None, None) => FileSource::Content(c),
                 (None, Some(t), None, None) => FileSource::Template(t),
                 (None, None, Some(t), None) => {
@@ -108,11 +115,11 @@ impl Config {
     }
 
     pub fn validate(&self) -> Result<(), ConfigError> {
-        for (_name, entry) in &self.files {
-            if let FileSource::TemplateFile(ref path) = entry.source {
-                if !path.exists() {
-                    return Err(ConfigError::TemplateNotFound(path.clone()));
-                }
+        for entry in self.files.values() {
+            if let FileSource::TemplateFile(ref path) = entry.source
+                && !path.exists()
+            {
+                return Err(ConfigError::TemplateNotFound(path.clone()));
             }
         }
         Ok(())
@@ -120,10 +127,10 @@ impl Config {
 }
 
 fn expand_tilde(path: &str) -> PathBuf {
-    if let Some(rest) = path.strip_prefix("~/") {
-        if let Some(home) = dirs::home_dir() {
-            return home.join(rest);
-        }
+    if let Some(rest) = path.strip_prefix("~/")
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(rest);
     }
     PathBuf::from(path)
 }

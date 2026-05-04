@@ -18,17 +18,19 @@ fn test_cache_hit() {
     assert_eq!(result.unwrap(), "cached-value");
 }
 
+// SAFETY: tests run with --test-threads=1 (see CLAUDE.md), so set_var is single-threaded.
+
 #[test]
 fn test_cache_expiry() {
-    // Use mock op that returns a known value
-    std::env::set_var("PATH", mock_op_path());
-    std::env::set_var("MOCK_OP_RESPONSE", "refreshed-value");
-    std::env::set_var("MOCK_OP_EXIT_CODE", "0");
+    unsafe {
+        std::env::set_var("PATH", mock_op_path());
+        std::env::set_var("MOCK_OP_RESPONSE", "refreshed-value");
+        std::env::set_var("MOCK_OP_EXIT_CODE", "0");
+    }
 
     let resolver = SecretResolver::new(Duration::from_secs(0), Duration::from_secs(30));
     resolver.inject_cache("op://test/item/field", "old-value");
 
-    // With TTL=0, cache is always expired, so it re-fetches via mock op
     let result = resolver.resolve("op://test/item/field");
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "refreshed-value");
@@ -36,9 +38,11 @@ fn test_cache_expiry() {
 
 #[test]
 fn test_cache_miss_fetches_from_op() {
-    std::env::set_var("PATH", mock_op_path());
-    std::env::set_var("MOCK_OP_RESPONSE", "fetched-secret");
-    std::env::set_var("MOCK_OP_EXIT_CODE", "0");
+    unsafe {
+        std::env::set_var("PATH", mock_op_path());
+        std::env::set_var("MOCK_OP_RESPONSE", "fetched-secret");
+        std::env::set_var("MOCK_OP_EXIT_CODE", "0");
+    }
 
     let resolver = SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30));
 
@@ -49,10 +53,12 @@ fn test_cache_miss_fetches_from_op() {
 
 #[test]
 fn test_op_failure() {
-    std::env::set_var("PATH", mock_op_path());
-    std::env::set_var("MOCK_OP_RESPONSE", "");
-    std::env::set_var("MOCK_OP_EXIT_CODE", "1");
-    std::env::set_var("MOCK_OP_STDERR", "not signed in");
+    unsafe {
+        std::env::set_var("PATH", mock_op_path());
+        std::env::set_var("MOCK_OP_RESPONSE", "");
+        std::env::set_var("MOCK_OP_EXIT_CODE", "1");
+        std::env::set_var("MOCK_OP_STDERR", "not signed in");
+    }
 
     let resolver = SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30));
 
@@ -64,16 +70,17 @@ fn test_op_failure() {
 
 #[test]
 fn test_clear_cache() {
-    std::env::set_var("PATH", mock_op_path());
-    std::env::set_var("MOCK_OP_RESPONSE", "after-clear");
-    std::env::set_var("MOCK_OP_EXIT_CODE", "0");
+    unsafe {
+        std::env::set_var("PATH", mock_op_path());
+        std::env::set_var("MOCK_OP_RESPONSE", "after-clear");
+        std::env::set_var("MOCK_OP_EXIT_CODE", "0");
+    }
 
     let resolver = SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30));
     resolver.inject_cache("op://test/item/field", "value");
 
     resolver.clear_cache();
 
-    // Cache cleared, re-fetches via mock op
     let result = resolver.resolve("op://test/item/field");
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), "after-clear");

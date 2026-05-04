@@ -39,10 +39,10 @@ enum Commands {
 }
 
 fn expand_tilde(path: &str) -> PathBuf {
-    if let Some(rest) = path.strip_prefix("~/") {
-        if let Some(home) = dirs::home_dir() {
-            return home.join(rest);
-        }
+    if let Some(rest) = path.strip_prefix("~/")
+        && let Some(home) = dirs::home_dir()
+    {
+        return home.join(rest);
     }
     PathBuf::from(path)
 }
@@ -98,10 +98,15 @@ fn cmd_mount(config_path: PathBuf) {
     // Check that `op` is available
     match std::process::Command::new("op").arg("--version").output() {
         Ok(output) if output.status.success() => {
-            info!("1Password CLI: {}", String::from_utf8_lossy(&output.stdout).trim());
+            info!(
+                "1Password CLI: {}",
+                String::from_utf8_lossy(&output.stdout).trim()
+            );
         }
         _ => {
-            eprintln!("Error: 1Password CLI (op) not found. Install it: https://developer.1password.com/docs/cli/");
+            eprintln!(
+                "Error: 1Password CLI (op) not found. Install it: https://developer.1password.com/docs/cli/"
+            );
             std::process::exit(1);
         }
     }
@@ -148,18 +153,26 @@ fn cmd_unmount(config_path: PathBuf) {
     let mountpoint = config.mountpoint.to_string_lossy().to_string();
 
     #[cfg(target_os = "macos")]
-    let result = std::process::Command::new("umount").arg(&mountpoint).status();
+    let result = std::process::Command::new("umount")
+        .arg(&mountpoint)
+        .status();
     #[cfg(target_os = "linux")]
-    let result = std::process::Command::new("fusermount").args(["-u", &mountpoint]).status();
+    let result = std::process::Command::new("fusermount")
+        .args(["-u", &mountpoint])
+        .status();
     #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     let result: Result<std::process::ExitStatus, std::io::Error> = Err(std::io::Error::new(
-        std::io::ErrorKind::Unsupported, "unsupported platform"
+        std::io::ErrorKind::Unsupported,
+        "unsupported platform",
     ));
 
     match result {
         Ok(status) if status.success() => eprintln!("Unmounted {mountpoint}"),
         Ok(status) => {
-            eprintln!("Unmount failed (exit code: {})", status.code().unwrap_or(-1));
+            eprintln!(
+                "Unmount failed (exit code: {})",
+                status.code().unwrap_or(-1)
+            );
             std::process::exit(1);
         }
         Err(e) => {
@@ -183,7 +196,10 @@ fn cmd_check(config_path: PathBuf) {
         std::process::exit(1);
     }
 
-    let resolver = Arc::new(SecretResolver::new(Duration::from_secs(300), Duration::from_secs(30)));
+    let resolver = Arc::new(SecretResolver::new(
+        Duration::from_secs(300),
+        Duration::from_secs(30),
+    ));
     let engine = TemplateEngine::new(resolver);
 
     let mut errors = 0;
