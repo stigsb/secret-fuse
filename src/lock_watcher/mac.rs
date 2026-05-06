@@ -57,6 +57,7 @@ type IOServiceInterestCallback = unsafe extern "C" fn(
     message_argument: *mut c_void,
 );
 
+const K_IO_MESSAGE_CAN_SYSTEM_SLEEP: u32 = 0xE0000270;
 const K_IO_MESSAGE_SYSTEM_WILL_SLEEP: u32 = 0xE0000280;
 
 #[link(name = "IOKit", kind = "framework")]
@@ -303,11 +304,22 @@ unsafe extern "C" fn sleep_callback(
         return;
     }
     let ctx = unsafe { &*(refcon as *const Context) };
-    if message_type == K_IO_MESSAGE_SYSTEM_WILL_SLEEP {
-        log::info!("auto_lock: system will sleep — wiping caches");
-        ctx.dispatch();
-        unsafe {
-            IOAllowPowerChange(ctx.root_port, message_argument as isize);
+    match message_type {
+        K_IO_MESSAGE_CAN_SYSTEM_SLEEP => {
+            // Consent to idle sleep without delay. Without this, IOKit
+            // waits ~30s for our reply before sleeping.
+            unsafe {
+                IOAllowPowerChange(ctx.root_port, message_argument as isize);
+            }
         }
+        K_IO_MESSAGE_SYSTEM_WILL_SLEEP => {
+            log::info!("auto_lock: system will sleep — wiping caches");
+            ctx.dispatch();
+            // Acknowledge so macOS proceeds with sleep.
+            unsafe {
+                IOAllowPowerChange(ctx.root_port, message_argument as isize);
+            }
+        }
+        _ => {}
     }
 }
