@@ -1773,7 +1773,7 @@ fn install_launchd(
         .join("Library/LaunchAgents");
     std::fs::create_dir_all(&plist_dir)?;
 
-    let plist_path = plist_dir.join("ai.sunstoneinstitute.secret-fuse.plist");
+    let plist_path = plist_dir.join("com.stigbakken.secret-fuse.plist");
     let plist = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

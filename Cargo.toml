@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 description = "FUSE filesystem for rendering files with secrets from 1Password"
 license = "MIT"
-authors = ["Stig Bakken <stig@sunstoneinstitute.ai>"]
-repository = "https://github.com/sunstoneinstitute/secret-fuse"
+authors = ["Stig Bakken <stig@stigbakken.com>"]
+repository = "https://github.com/stigsb/secret-fuse"
 
 [dependencies]
 fuser = "0.17"
