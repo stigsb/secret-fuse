@@ -117,14 +117,16 @@ fn cmd_mount(config_path: PathBuf) {
     // Harden process before loading any secrets
     harden::harden_process();
 
+    let key = Arc::new(CacheKey::new());
     let resolver = Arc::new(SecretResolver::new(
         Duration::from_secs(config.cache_ttl),
         Duration::from_secs(config.op_timeout),
-        Arc::new(CacheKey::new()),
+        Arc::clone(&key),
     ));
     let engine = Arc::new(TemplateEngine::new(Arc::clone(&resolver)));
+    let content_cache = Arc::new(content_cache::ContentCache::new(Arc::clone(&key)));
     let mountpoint = config.mountpoint.clone();
-    let filesystem = fs::SecretFs::new(config.files, engine);
+    let filesystem = fs::SecretFs::new(config.files, engine, content_cache);
 
     // Clear secret caches on SIGHUP
     let sighup_resolver = Arc::clone(&resolver);

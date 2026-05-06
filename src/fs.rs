@@ -10,9 +10,9 @@ use log::error;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use crate::content_cache::ContentCache;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
-use zeroize::Zeroize;
 
 const CONTENT_TTL: Duration = Duration::from_secs(300);
 const ATTR_TTL: Duration = Duration::from_secs(1);
@@ -25,33 +25,27 @@ enum FsNode {
     },
     File {
         entry: FileEntry,
-        cache: Mutex<Option<CachedContent>>,
     },
-}
-
-struct CachedContent {
-    data: Vec<u8>,
-    expires_at: std::time::Instant,
-}
-
-impl Drop for CachedContent {
-    fn drop(&mut self) {
-        self.data.zeroize();
-    }
 }
 
 pub struct SecretFs {
     nodes: HashMap<u64, FsNode>,
     next_ino: u64,
     engine: Arc<TemplateEngine>,
+    content_cache: Arc<ContentCache>,
 }
 
 impl SecretFs {
-    pub fn new(files: HashMap<String, FileEntry>, engine: Arc<TemplateEngine>) -> Self {
+    pub fn new(
+        files: HashMap<String, FileEntry>,
+        engine: Arc<TemplateEngine>,
+        content_cache: Arc<ContentCache>,
+    ) -> Self {
         let mut fs = SecretFs {
             nodes: HashMap::new(),
             next_ino: 2,
             engine,
+            content_cache,
         };
 
         // Insert root directory (inode 1)
@@ -113,13 +107,7 @@ impl SecretFs {
         // Insert the file
         let file_name = parts[parts.len() - 1].to_string();
         let file_ino = self.alloc_inode();
-        self.nodes.insert(
-            file_ino,
-            FsNode::File {
-                entry,
-                cache: Mutex::new(None),
-            },
-        );
+        self.nodes.insert(file_ino, FsNode::File { entry });
         if let Some(FsNode::Dir { children }) = self.nodes.get_mut(&parent_ino) {
             children.insert(file_name, file_ino);
         }
@@ -152,14 +140,9 @@ impl SecretFs {
         let node = self.nodes.get(&ino)?;
         match node {
             FsNode::Dir { .. } => None,
-            FsNode::File { entry, cache } => {
-                {
-                    let guard = cache.lock().unwrap();
-                    if let Some(ref cached) = *guard
-                        && cached.expires_at > std::time::Instant::now()
-                    {
-                        return Some(cached.data.clone());
-                    }
+            FsNode::File { entry } => {
+                if let Some(cached) = self.content_cache.get(ino) {
+                    return Some(cached);
                 }
 
                 let result = match &entry.source {
@@ -177,13 +160,9 @@ impl SecretFs {
 
                 match result {
                     Ok(content) => {
-                        let data = content.into_bytes();
-                        let mut guard = cache.lock().unwrap();
-                        *guard = Some(CachedContent {
-                            data: data.clone(),
-                            expires_at: std::time::Instant::now() + CONTENT_TTL,
-                        });
-                        Some(data)
+                        let bytes = content.into_bytes();
+                        self.content_cache.put(ino, &bytes, CONTENT_TTL);
+                        Some(bytes)
                     }
                     Err(e) => {
                         error!("failed to render content for inode {ino}: {e}");
