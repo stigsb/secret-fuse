@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+mod cache_crypto;
 mod config;
 mod fs;
 mod harden;
@@ -13,6 +14,7 @@ mod resolver;
 mod service;
 mod template;
 
+use cache_crypto::CacheKey;
 use config::Config;
 use resolver::SecretResolver;
 use template::TemplateEngine;
@@ -117,6 +119,7 @@ fn cmd_mount(config_path: PathBuf) {
     let resolver = Arc::new(SecretResolver::new(
         Duration::from_secs(config.cache_ttl),
         Duration::from_secs(config.op_timeout),
+        Arc::new(CacheKey::new()),
     ));
     let engine = Arc::new(TemplateEngine::new(Arc::clone(&resolver)));
     let mountpoint = config.mountpoint.clone();
@@ -199,6 +202,7 @@ fn cmd_check(config_path: PathBuf) {
     let resolver = Arc::new(SecretResolver::new(
         Duration::from_secs(300),
         Duration::from_secs(30),
+        Arc::new(CacheKey::new()),
     ));
     let engine = TemplateEngine::new(resolver);
 

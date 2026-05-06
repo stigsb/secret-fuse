@@ -1,3 +1,4 @@
+use secret_fuse::cache_crypto::CacheKey;
 use secret_fuse::config::{FileEntry, FileSource};
 use secret_fuse::fs::SecretFs;
 use secret_fuse::resolver::SecretResolver;
@@ -10,6 +11,7 @@ fn test_fs() -> SecretFs {
     let resolver = Arc::new(SecretResolver::new(
         Duration::from_secs(300),
         Duration::from_secs(30),
+        Arc::new(CacheKey::new()),
     ));
     let engine = Arc::new(TemplateEngine::new(resolver));
 
