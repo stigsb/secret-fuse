@@ -5,12 +5,20 @@
 use std::sync::Arc;
 
 pub trait Lockable: Send + Sync {
+    // Called by the macOS watcher and by integration tests; on non-macOS
+    // platforms the lib/bin doesn't invoke it directly, so silence the
+    // dead-code lint there.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     fn on_lock(&self);
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct LockConfig {
+    // Read by the macOS watcher; on non-macOS the spawn stub discards the
+    // config, so silence the dead-code lint there.
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub on_screen_lock: bool,
+    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub on_sleep: bool,
 }
 
