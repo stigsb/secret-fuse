@@ -8,6 +8,7 @@ use std::time::Duration;
 
 mod cache_crypto;
 mod config;
+mod content_cache;
 mod fs;
 mod harden;
 mod resolver;

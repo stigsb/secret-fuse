@@ -65,7 +65,7 @@ impl zeroize::Zeroize for CacheKey {
 }
 
 /// Encrypted cache payload. Both fields zeroize on drop for hygiene.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EncCacheEntry {
     pub nonce: [u8; 12],
     pub ciphertext: Vec<u8>,
