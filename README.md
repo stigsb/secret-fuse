@@ -95,3 +95,15 @@ DB_PASSWORD={{ op("op://Dev/postgres/password") | trim }}
 ## Cache
 
 Secrets are cached in memory (default 5 minutes). Send `SIGHUP` to clear the cache.
+
+## Development
+
+A `.pre-commit-config.yaml` mirrors the CI lint job (`cargo fmt --check` on
+commit, `cargo clippy --all-targets --locked -- -D warnings` on push). Install
+the hooks once after cloning:
+
+```bash
+pre-commit install --hook-type pre-commit --hook-type pre-push
+```
+
+(Requires the [pre-commit](https://pre-commit.com/) tool: `brew install pre-commit` or `pip install pre-commit`.)

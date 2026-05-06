@@ -6,13 +6,17 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+mod cache_crypto;
 mod config;
+mod content_cache;
 mod fs;
 mod harden;
+mod lock_watcher;
 mod resolver;
 mod service;
 mod template;
 
+use cache_crypto::CacheKey;
 use config::Config;
 use resolver::SecretResolver;
 use template::TemplateEngine;
@@ -114,21 +118,39 @@ fn cmd_mount(config_path: PathBuf) {
     // Harden process before loading any secrets
     harden::harden_process();
 
+    let key = Arc::new(CacheKey::new());
     let resolver = Arc::new(SecretResolver::new(
         Duration::from_secs(config.cache_ttl),
         Duration::from_secs(config.op_timeout),
+        Arc::clone(&key),
     ));
     let engine = Arc::new(TemplateEngine::new(Arc::clone(&resolver)));
+    let content_cache = Arc::new(content_cache::ContentCache::new(Arc::clone(&key)));
     let mountpoint = config.mountpoint.clone();
-    let filesystem = fs::SecretFs::new(config.files, engine);
+    let filesystem = fs::SecretFs::new(config.files, engine, Arc::clone(&content_cache));
+
+    // Auto-lock watcher (macOS event-driven; no-op stub on Linux).
+    let lock_targets: Vec<Arc<dyn lock_watcher::Lockable>> = vec![
+        Arc::clone(&resolver) as Arc<dyn lock_watcher::Lockable>,
+        Arc::clone(&content_cache) as Arc<dyn lock_watcher::Lockable>,
+    ];
+    let lock_watcher = lock_watcher::LockWatcher::spawn(
+        lock_targets,
+        lock_watcher::LockConfig {
+            on_screen_lock: config.auto_lock.on_screen_lock,
+            on_sleep: config.auto_lock.on_sleep,
+        },
+    );
 
     // Clear secret caches on SIGHUP
     let sighup_resolver = Arc::clone(&resolver);
+    let sighup_content = Arc::clone(&content_cache);
     let mut signals = Signals::new([SIGHUP]).expect("failed to register SIGHUP handler");
     std::thread::spawn(move || {
         for _ in signals.forever() {
-            info!("SIGHUP received, clearing secret cache");
+            info!("SIGHUP received, clearing caches");
             sighup_resolver.clear_cache();
+            sighup_content.clear_all();
         }
     });
 
@@ -137,8 +159,11 @@ fn cmd_mount(config_path: PathBuf) {
 
     if let Err(e) = fs::mount(filesystem, &mountpoint) {
         eprintln!("Error: {e}");
+        lock_watcher.shutdown();
         std::process::exit(1);
     }
+
+    lock_watcher.shutdown();
 }
 
 fn cmd_unmount(config_path: PathBuf) {
@@ -199,6 +224,7 @@ fn cmd_check(config_path: PathBuf) {
     let resolver = Arc::new(SecretResolver::new(
         Duration::from_secs(300),
         Duration::from_secs(30),
+        Arc::new(CacheKey::new()),
     ));
     let engine = TemplateEngine::new(resolver);
 

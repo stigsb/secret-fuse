@@ -1,4 +1,6 @@
+use secret_fuse::cache_crypto::CacheKey;
 use secret_fuse::config::{FileEntry, FileSource};
+use secret_fuse::content_cache::ContentCache;
 use secret_fuse::fs::SecretFs;
 use secret_fuse::resolver::SecretResolver;
 use secret_fuse::template::TemplateEngine;
@@ -7,11 +9,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 fn test_fs() -> SecretFs {
+    let key = Arc::new(CacheKey::new());
     let resolver = Arc::new(SecretResolver::new(
         Duration::from_secs(300),
         Duration::from_secs(30),
+        Arc::clone(&key),
     ));
     let engine = Arc::new(TemplateEngine::new(resolver));
+    let content_cache = Arc::new(ContentCache::new(key));
 
     let mut files = HashMap::new();
     files.insert(
@@ -33,7 +38,7 @@ fn test_fs() -> SecretFs {
         },
     );
 
-    SecretFs::new(files, engine)
+    SecretFs::new(files, engine, content_cache)
 }
 
 #[test]

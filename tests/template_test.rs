@@ -1,3 +1,4 @@
+use secret_fuse::cache_crypto::CacheKey;
 use secret_fuse::resolver::SecretResolver;
 use secret_fuse::template::TemplateEngine;
 use std::sync::Arc;
@@ -7,6 +8,7 @@ fn test_resolver() -> Arc<SecretResolver> {
     let resolver = Arc::new(SecretResolver::new(
         Duration::from_secs(300),
         Duration::from_secs(30),
+        Arc::new(CacheKey::new()),
     ));
     resolver.inject_cache("op://Dev/postgres/password", "s3cret");
     resolver.inject_cache("op://Dev/api/key", "ak_12345");
@@ -69,6 +71,7 @@ fn test_render_totoml_filter_escapes_control_chars() {
     let resolver = Arc::new(SecretResolver::new(
         Duration::from_secs(300),
         Duration::from_secs(30),
+        Arc::new(CacheKey::new()),
     ));
     let raw = "line1\nline2\twith\ttabs and a \"quote\" and a \\backslash";
     resolver.inject_cache("op://Dev/multiline", raw);

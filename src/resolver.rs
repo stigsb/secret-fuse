@@ -1,9 +1,12 @@
-use secrecy::{ExposeSecret, SecretString};
+use crate::cache_crypto::{CacheKey, EncCacheEntry};
+use crate::lock_watcher::Lockable;
+use log::error;
 use std::collections::HashMap;
 use std::process::Command;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use wait_timeout::ChildExt;
+use zeroize::Zeroize;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ResolveError {
@@ -18,21 +21,23 @@ pub enum ResolveError {
 }
 
 struct CachedSecret {
-    value: SecretString,
+    entry: EncCacheEntry,
     expires_at: Instant,
 }
 
 pub struct SecretResolver {
     ttl: Duration,
     op_timeout: Duration,
+    key: Arc<CacheKey>,
     cache: Mutex<HashMap<String, CachedSecret>>,
 }
 
 impl SecretResolver {
-    pub fn new(ttl: Duration, op_timeout: Duration) -> Self {
+    pub fn new(ttl: Duration, op_timeout: Duration, key: Arc<CacheKey>) -> Self {
         SecretResolver {
             ttl,
             op_timeout,
+            key,
             cache: Mutex::new(HashMap::new()),
         }
     }
@@ -42,31 +47,52 @@ impl SecretResolver {
             return Err(ResolveError::InvalidUri(uri.to_string()));
         }
 
-        // Check cache
-        {
-            let cache = self.cache.lock().unwrap();
-            if let Some(entry) = cache.get(uri)
-                && entry.expires_at > Instant::now()
-            {
-                return Ok(entry.value.expose_secret().to_string());
+        // Cache hit path: clone the encrypted entry under the lock, then
+        // decrypt outside the lock so concurrent reads don't serialize on
+        // the AEAD operation. Mirrors ContentCache::get.
+        let cloned_entry = {
+            let mut cache = self.cache.lock().unwrap();
+            match cache.get(uri) {
+                Some(cs) if cs.expires_at > Instant::now() => Some(cs.entry.clone()),
+                Some(_) => {
+                    cache.remove(uri);
+                    None
+                }
+                None => None,
+            }
+        };
+        if let Some(entry) = cloned_entry {
+            match self.key.open(&entry) {
+                Ok(plaintext) => {
+                    return match String::from_utf8(plaintext) {
+                        Ok(s) => Ok(s),
+                        Err(e) => {
+                            let mut bad = e.into_bytes();
+                            bad.zeroize();
+                            Err(ResolveError::OpFailed("utf8: invalid bytes".to_string()))
+                        }
+                    };
+                }
+                Err(e) => {
+                    error!("cache decrypt failed for {uri}: {e}; refetching");
+                    let mut cache = self.cache.lock().unwrap();
+                    cache.remove(uri);
+                }
             }
         }
 
-        // Fetch from op CLI
+        // Miss → fetch and store
         let value = self.fetch_from_op(uri)?;
-
-        // Store in cache as SecretString (zeroized on drop)
         {
             let mut cache = self.cache.lock().unwrap();
             cache.insert(
                 uri.to_string(),
                 CachedSecret {
-                    value: SecretString::from(value.clone()),
+                    entry: self.key.seal(value.as_bytes()),
                     expires_at: Instant::now() + self.ttl,
                 },
             );
         }
-
         Ok(value)
     }
 
@@ -107,19 +133,38 @@ impl SecretResolver {
 
     pub fn clear_cache(&self) {
         let mut cache = self.cache.lock().unwrap();
-        cache.clear(); // Each CachedSecret's SecretString is zeroized on drop
+        cache.clear();
     }
 
-    /// Inject a value into the cache (for testing).
+    /// Inject a value into the cache (testing only).
     #[allow(dead_code)]
     pub fn inject_cache(&self, uri: &str, value: &str) {
         let mut cache = self.cache.lock().unwrap();
         cache.insert(
             uri.to_string(),
             CachedSecret {
-                value: SecretString::from(value.to_string()),
+                entry: self.key.seal(value.as_bytes()),
                 expires_at: Instant::now() + self.ttl,
             },
         );
+    }
+
+    /// Test-only: return a copy of the raw `(nonce, ciphertext)` bytes for an entry.
+    #[doc(hidden)]
+    #[allow(dead_code)]
+    pub fn raw_cache_bytes_for_test(&self, uri: &str) -> Option<Vec<u8>> {
+        let cache = self.cache.lock().unwrap();
+        cache.get(uri).map(|e| {
+            let mut out = Vec::with_capacity(12 + e.entry.ciphertext.len());
+            out.extend_from_slice(&e.entry.nonce);
+            out.extend_from_slice(&e.entry.ciphertext);
+            out
+        })
+    }
+}
+
+impl Lockable for SecretResolver {
+    fn on_lock(&self) {
+        self.clear_cache();
     }
 }

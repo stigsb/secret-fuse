@@ -8,6 +8,7 @@ pub struct Config {
     pub mountpoint: PathBuf,
     pub cache_ttl: u64,
     pub op_timeout: u64,
+    pub auto_lock: AutoLockConfig,
     pub files: HashMap<String, FileEntry>,
 }
 
@@ -22,6 +23,27 @@ pub enum FileSource {
     Template(String),
     TemplateFile(PathBuf),
     Secret(String),
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AutoLockConfig {
+    #[serde(default = "yes")]
+    pub on_screen_lock: bool,
+    #[serde(default = "yes")]
+    pub on_sleep: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+impl Default for AutoLockConfig {
+    fn default() -> Self {
+        AutoLockConfig {
+            on_screen_lock: true,
+            on_sleep: true,
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -45,6 +67,8 @@ struct RawConfig {
     cache_ttl: u64,
     #[serde(default = "default_op_timeout")]
     op_timeout: u64,
+    #[serde(default)]
+    auto_lock: AutoLockConfig,
     files: HashMap<String, RawFileEntry>,
 }
 
@@ -110,6 +134,7 @@ impl Config {
             mountpoint,
             cache_ttl: raw.cache_ttl,
             op_timeout: raw.op_timeout,
+            auto_lock: raw.auto_lock,
             files,
         })
     }

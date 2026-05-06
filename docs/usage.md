@@ -158,6 +158,38 @@ The filesystem is read-only. Tools that try to modify these files will get
 - Send `SIGHUP` to the process to clear all caches immediately.
 - All cached secret memory is zeroized on eviction/drop.
 
+## Auto-lock
+
+`secret-fuse` wipes its in-memory caches automatically on macOS when the
+screen is locked or the system goes to sleep. Tune this in your config:
+
+```yaml
+auto_lock:
+  on_screen_lock: true   # default
+  on_sleep: true         # default
+```
+
+Set either to `false` to opt out. If the `auto_lock` block is omitted
+entirely, both default to `true`.
+
+On Linux, `secret-fuse` parses the config but does not yet act on these
+events; cache contents will only expire on TTL or on `SIGHUP`. Linux
+support is planned.
+
+Cache contents are also encrypted at rest in process memory under a
+process-local random key (ChaCha20-Poly1305), so a forensic snapshot of
+the daemon's address space sees ciphertext rather than plaintext secrets.
+
+### Manual verification (macOS)
+
+1. `cargo run -- --config fixtures/inline_config.yaml mount /tmp/sf`
+2. `cat /tmp/sf/<a templated file>` — observe an `op` invocation in logs.
+3. `cat /tmp/sf/<same file>` — no `op` (cache hit).
+4. Lock screen with `Ctrl+Cmd+Q`, wait a moment, unlock.
+5. `cat /tmp/sf/<same file>` — observe a fresh `op` invocation. (If your
+   1Password vault is also locked, you'll see an `op` failure error,
+   which is the expected behaviour.)
+
 ## Troubleshooting
 
 ### "1Password CLI (op) not found"
