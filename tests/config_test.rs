@@ -45,3 +45,31 @@ fn test_expand_tilde_in_mountpoint() {
     let config = Config::from_str(yaml).unwrap();
     assert!(!config.mountpoint.to_string_lossy().contains('~'));
 }
+
+#[test]
+fn test_auto_lock_defaults_to_enabled_when_omitted() {
+    let yaml = r#"
+mountpoint: /tmp/x
+files:
+  foo:
+    content: bar
+"#;
+    let cfg = secret_fuse::config::Config::from_str(yaml).expect("parse");
+    assert!(cfg.auto_lock.on_screen_lock);
+    assert!(cfg.auto_lock.on_sleep);
+}
+
+#[test]
+fn test_auto_lock_partial_block_keeps_other_default() {
+    let yaml = r#"
+mountpoint: /tmp/x
+files:
+  foo:
+    content: bar
+auto_lock:
+  on_sleep: false
+"#;
+    let cfg = secret_fuse::config::Config::from_str(yaml).expect("parse");
+    assert!(cfg.auto_lock.on_screen_lock);
+    assert!(!cfg.auto_lock.on_sleep);
+}
