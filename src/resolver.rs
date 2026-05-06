@@ -47,27 +47,36 @@ impl SecretResolver {
             return Err(ResolveError::InvalidUri(uri.to_string()));
         }
 
-        // Cache hit path
-        {
+        // Cache hit path: clone the encrypted entry under the lock, then
+        // decrypt outside the lock so concurrent reads don't serialize on
+        // the AEAD operation. Mirrors ContentCache::get.
+        let cloned_entry = {
             let mut cache = self.cache.lock().unwrap();
-            if let Some(entry) = cache.get(uri) {
-                if entry.expires_at > Instant::now() {
-                    match self.key.open(&entry.entry) {
-                        Ok(plaintext) => {
-                            return match String::from_utf8(plaintext) {
-                                Ok(s) => Ok(s),
-                                Err(e) => {
-                                    let mut bad = e.into_bytes();
-                                    bad.zeroize();
-                                    Err(ResolveError::OpFailed("utf8: invalid bytes".to_string()))
-                                }
-                            };
-                        }
+            match cache.get(uri) {
+                Some(cs) if cs.expires_at > Instant::now() => Some(cs.entry.clone()),
+                Some(_) => {
+                    cache.remove(uri);
+                    None
+                }
+                None => None,
+            }
+        };
+        if let Some(entry) = cloned_entry {
+            match self.key.open(&entry) {
+                Ok(plaintext) => {
+                    return match String::from_utf8(plaintext) {
+                        Ok(s) => Ok(s),
                         Err(e) => {
-                            error!("cache decrypt failed for {uri}: {e}; refetching");
-                            cache.remove(uri);
+                            let mut bad = e.into_bytes();
+                            bad.zeroize();
+                            Err(ResolveError::OpFailed("utf8: invalid bytes".to_string()))
                         }
-                    }
+                    };
+                }
+                Err(e) => {
+                    error!("cache decrypt failed for {uri}: {e}; refetching");
+                    let mut cache = self.cache.lock().unwrap();
+                    cache.remove(uri);
                 }
             }
         }
@@ -142,6 +151,7 @@ impl SecretResolver {
 
     /// Test-only: return a copy of the raw `(nonce, ciphertext)` bytes for an entry.
     #[doc(hidden)]
+    #[allow(dead_code)]
     pub fn raw_cache_bytes_for_test(&self, uri: &str) -> Option<Vec<u8>> {
         let cache = self.cache.lock().unwrap();
         cache.get(uri).map(|e| {

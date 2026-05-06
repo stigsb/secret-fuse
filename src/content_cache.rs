@@ -69,6 +69,7 @@ impl ContentCache {
 
     /// Test-only: return a copy of the raw `(nonce, ciphertext)` bytes for an entry.
     #[doc(hidden)]
+    #[allow(dead_code)]
     pub fn raw_bytes_for_test(&self, ino: u64) -> Option<Vec<u8>> {
         let by_inode = self.by_inode.lock().unwrap();
         by_inode.get(&ino).map(|c| {

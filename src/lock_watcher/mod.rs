@@ -25,6 +25,7 @@ pub struct LockWatcher {
 }
 
 impl LockWatcher {
+    #[allow(clippy::needless_return)]
     pub fn spawn(targets: Vec<Arc<dyn Lockable>>, cfg: LockConfig) -> Self {
         #[cfg(target_os = "macos")]
         {
