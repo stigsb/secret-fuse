@@ -69,9 +69,7 @@ unsafe extern "C" {
         notifier: *mut io_object_t,
     ) -> io_connect_t;
     fn IODeregisterForSystemPower(notifier: *mut io_object_t) -> i32;
-    fn IONotificationPortGetRunLoopSource(
-        notify: IONotificationPortRef,
-    ) -> CFRunLoopSourceRef;
+    fn IONotificationPortGetRunLoopSource(notify: IONotificationPortRef) -> CFRunLoopSourceRef;
     fn IONotificationPortDestroy(notify: IONotificationPortRef);
     fn IOAllowPowerChange(kernel_port: io_connect_t, notification_id: isize) -> i32;
 }
@@ -129,10 +127,7 @@ impl Drop for MacWatcher {
 }
 
 impl MacWatcher {
-    pub(super) fn start(
-        targets: Vec<Arc<dyn Lockable>>,
-        cfg: LockConfig,
-    ) -> Option<Self> {
+    pub(super) fn start(targets: Vec<Arc<dyn Lockable>>, cfg: LockConfig) -> Option<Self> {
         if !cfg.on_screen_lock && !cfg.on_sleep {
             return None;
         }
@@ -228,8 +223,7 @@ impl MacWatcher {
                         // core-foundation manages retain/release, then add via
                         // the high-level CFRunLoop::add_source method.
                         use core_foundation::runloop::CFRunLoopSource;
-                        let cf_source: CFRunLoopSource =
-                            TCFType::wrap_under_get_rule(source);
+                        let cf_source: CFRunLoopSource = TCFType::wrap_under_get_rule(source);
                         let rl = CFRunLoop::get_current();
                         rl.add_source(&cf_source, kCFRunLoopDefaultMode);
                         // cf_source drops here — that's OK; IOKit retains the source

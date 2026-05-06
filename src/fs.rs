@@ -1,5 +1,6 @@
 // FUSE filesystem implementation
 use crate::config::{FileEntry, FileSource};
+use crate::content_cache::ContentCache;
 use crate::template::TemplateEngine;
 use fuser::{
     FileAttr, FileType, Filesystem, INodeNo, MountOption, ReplyAttr, ReplyData, ReplyDirectory,
@@ -10,7 +11,6 @@ use log::error;
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
-use crate::content_cache::ContentCache;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
@@ -20,12 +20,8 @@ const ATTR_TTL: Duration = Duration::from_secs(1);
 // ─── Filesystem tree ──────────────────────────────────────────────────────────
 
 enum FsNode {
-    Dir {
-        children: HashMap<String, u64>,
-    },
-    File {
-        entry: FileEntry,
-    },
+    Dir { children: HashMap<String, u64> },
+    File { entry: FileEntry },
 }
 
 pub struct SecretFs {

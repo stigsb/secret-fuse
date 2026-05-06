@@ -106,7 +106,11 @@ fn test_lockable_clears_cache() {
     let resolver = make_resolver(300);
     resolver.inject_cache("op://test/item/field", "value");
     resolver.on_lock();
-    assert!(resolver.raw_cache_bytes_for_test("op://test/item/field").is_none());
+    assert!(
+        resolver
+            .raw_cache_bytes_for_test("op://test/item/field")
+            .is_none()
+    );
 }
 
 #[test]
