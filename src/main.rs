@@ -11,6 +11,7 @@ mod config;
 mod content_cache;
 mod fs;
 mod harden;
+mod lock_watcher;
 mod resolver;
 mod service;
 mod template;

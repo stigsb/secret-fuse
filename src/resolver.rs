@@ -1,4 +1,5 @@
 use crate::cache_crypto::{CacheKey, EncCacheEntry};
+use crate::lock_watcher::Lockable;
 use log::error;
 use std::collections::HashMap;
 use std::process::Command;
@@ -149,5 +150,11 @@ impl SecretResolver {
             out.extend_from_slice(&e.entry.ciphertext);
             out
         })
+    }
+}
+
+impl Lockable for SecretResolver {
+    fn on_lock(&self) {
+        self.clear_cache();
     }
 }

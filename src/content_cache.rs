@@ -1,6 +1,7 @@
 //! Per-inode encrypted rendered-content cache.
 
 use crate::cache_crypto::{CacheKey, EncCacheEntry};
+use crate::lock_watcher::Lockable;
 use log::error;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -76,6 +77,12 @@ impl ContentCache {
             out.extend_from_slice(&c.entry.ciphertext);
             out
         })
+    }
+}
+
+impl Lockable for ContentCache {
+    fn on_lock(&self) {
+        self.clear_all();
     }
 }
 
