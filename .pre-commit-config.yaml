@@ -1,0 +1,23 @@
+# Mirrors the `lint` job in .github/workflows/pr-checks.yml.
+# Install once per clone:
+#   pre-commit install --hook-type pre-commit --hook-type pre-push
+default_install_hook_types: [pre-commit, pre-push]
+
+repos:
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt --all -- --check
+        entry: cargo fmt --all -- --check
+        language: system
+        pass_filenames: false
+        files: \.rs$
+        stages: [pre-commit]
+
+      - id: cargo-clippy
+        name: cargo clippy --all-targets --locked -- -D warnings
+        entry: cargo clippy --all-targets --locked -- -D warnings
+        language: system
+        pass_filenames: false
+        files: \.rs$
+        stages: [pre-push]
